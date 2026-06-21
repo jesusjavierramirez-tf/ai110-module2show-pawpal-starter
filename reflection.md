@@ -2,6 +2,24 @@
 
 ## 1. System Design
 
+### Core Actions
+The user should be able to perform these three core actions:
+
+1. **Add/Edit Tasks** — User can add or modify pet care tasks, specifying duration, priority (high/medium/low), and task type (e.g., walk, feeding, medication, enrichment, grooming).
+
+2. **Generate Daily Schedule** — System creates an optimized daily plan by sorting and filtering tasks based on priority, available time, and owner preferences.
+
+3. **View Daily Plan** — User sees the generated schedule with task times, durations, and priorities. The system should explain why tasks were prioritized or excluded.
+
+### Building Blocks (Objects and Methods)
+
+| Class | Attributes | Methods | Responsibility |
+|-------|-----------|---------|-----------------|
+| **Owner** | name, available_hours | - | Represents the pet owner with daily time availability |
+| **Pet** | name, breed, age | - | Represents the pet being cared for |
+| **Task** | type, duration, priority, recurring | validate(), get_duration() | Represents a single care task with attributes and validation |
+| **Schedule** | tasks, owner, pet, daily_plan | add_task(), generate_plan(), get_plan() | Manages tasks and generates the daily schedule |
+
 **a. Initial design**
 
 - Briefly describe your initial UML design.

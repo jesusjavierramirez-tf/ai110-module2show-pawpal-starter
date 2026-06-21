@@ -1,0 +1,42 @@
+classDiagram
+    class Owner {
+        -name: str
+        -available_hours: float
+        +set_availability(hours: float)
+        +get_availability(): float
+    }
+    
+    class Pet {
+        -name: str
+        -breed: str
+        -age: int
+        +get_info(): str
+    }
+    
+    class Task {
+        -task_type: str
+        -duration: float
+        -priority: str
+        -recurring: bool
+        -time_slot: str
+        +validate(): bool
+        +get_duration(): float
+        +get_priority_level(): int
+    }
+    
+    class Schedule {
+        -owner: Owner
+        -pet: Pet
+        -tasks: list[Task]
+        -daily_plan: list[Task]
+        +add_task(task: Task)
+        +remove_task(task_id: str)
+        +generate_plan(date: str): list[Task]
+        +get_plan(): list[Task]
+        +sort_by_priority(): list[Task]
+    }
+    
+    %% Relationships
+    Owner "1" -- "1" Schedule: manages
+    Pet "1" -- "1" Schedule: schedules for
+    Schedule "1" -- "*" Task: contains
