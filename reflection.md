@@ -309,6 +309,184 @@ Added 10 new tests in `TestSmartAlgorithms` class covering:
 
 **Coverage**: 30/30 tests passing (20 original + 10 new)
 
+---
+
+## 3. AI Strategy and Collaboration
+
+### 3a. Most Effective AI Coding Assistant Features
+
+**1. Code Generation from Specifications** ⭐⭐⭐⭐⭐
+- **What worked**: Providing detailed prompts with class names, method signatures, and expected behavior
+- **Example**: "Generate a `sort_by_time()` method that sorts tasks by their HH:MM time_slot. Tasks without time slots should appear first. Return a sorted list."
+- **Why effective**: AI produced clean, working code immediately. Required minimal edits.
+- **Lesson**: Specificity in prompts dramatically improves output quality.
+
+**2. Skeleton Generation from UML** ⭐⭐⭐⭐⭐
+- **What worked**: Showing the AI a UML diagram and asking for Python class stubs
+- **Example**: "Here's my UML. Convert this to Python dataclasses with stub methods (just `pass`)"
+- **Why effective**: AI understood relationships and generated logical method names and parameters
+- **Lesson**: Visual references (UML) help AI maintain architectural consistency
+
+**3. Test Suite Generation** ⭐⭐⭐⭐
+- **What worked**: Asking for specific test cases with happy paths and edge cases
+- **Example**: "Generate tests for Task.mark_complete() covering: 1) task becomes completed, 2) one-time tasks don't create recurrence, 3) daily tasks create next-day instance"
+- **Why effective**: AI generated well-organized test classes with clear docstrings
+- **Limitation**: AI sometimes created redundant tests; required filtering
+- **Lesson**: Test generation needs human review to avoid bloat
+
+**4. Refactoring and Code Cleanup** ⭐⭐⭐⭐
+- **What worked**: Asking AI to simplify or improve existing code without changing behavior
+- **Example**: "My sort_by_time() method has inline time parsing. Can you extract a helper function to make it more readable?"
+- **Why effective**: AI understood the intent and produced cleaner code
+- **Limitation**: Sometimes over-engineered; simpler original was better
+- **Lesson**: Not all AI suggestions improve code; trust your judgment on complexity vs. clarity
+
+**5. Documentation and Docstrings** ⭐⭐⭐
+- **What worked**: Asking AI to add 1-line docstrings to existing methods
+- **Why effective**: Quick and consistent across the codebase
+- **Limitation**: Sometimes docstrings were obvious or slightly inaccurate
+- **Lesson**: AI documentation is a good starting point but needs review
+
+### 3b. Example: AI Suggestion Rejected/Modified
+
+**Scenario: Conflict Detection Algorithm**
+
+**AI Suggestion (Initial):**
+```python
+def detect_conflicts(self) -> List[Dict]:
+    """Complex duration-based overlap detection."""
+    conflicts = []
+    for i, task1 in enumerate(self.get_pending_tasks()):
+        for j, task2 in enumerate(self.get_pending_tasks()):
+            if i < j and task1.time_slot and task2.time_slot:
+                # Parse HH:MM and check if durations overlap
+                start1 = task1.get_time_slot_minutes()
+                end1 = start1 + int(task1.duration)
+                start2 = task2.get_time_slot_minutes()
+                end2 = start2 + int(task2.duration)
+                
+                if start1 < end2 and start2 < end1:  # Overlap
+                    conflicts.append({...})
+    return conflicts
+```
+
+**Why I Rejected It:**
+- ❌ Overly complex for MVP
+- ❌ Requires task duration to be set for conflict detection (not always true)
+- ❌ O(n²) performance with nested loops
+- ❌ Harder to test with many edge cases
+- ❌ User's workflow doesn't require exact overlap detection
+
+**My Modified Decision:**
+```python
+def detect_conflicts(self) -> List[Dict]:
+    """Simple exact-time conflict detection."""
+    time_groups: Dict[str, List[Task]] = {}
+    for task in self.get_pending_tasks():
+        if task.time_slot:
+            if task.time_slot not in time_groups:
+                time_groups[task.time_slot] = []
+            time_groups[task.time_slot].append(task)
+    
+    conflicts = []
+    for time_slot, tasks in time_groups.items():
+        if len(tasks) > 1:
+            conflicts.append({...})
+    return conflicts
+```
+
+**Why This Was Better:**
+- ✅ O(n) with single pass
+- ✅ Clear intent: "multiple tasks at exact same time"
+- ✅ Works with or without duration
+- ✅ Easy to test and debug
+- ✅ Sufficient for a pet owner's schedule
+- ✅ Can be enhanced later (duration overlap) if needed
+
+**Key Lesson:** AI suggests feature-complete solutions; as the architect, you choose MVP simplicity over premature optimization. "Simple enough to explain" > "As powerful as possible."
+
+### 3c. Separate Chat Sessions for Organization
+
+**How I Used Multiple Sessions:**
+
+1. **Session 1: Design** — "Here's the scenario, what classes do I need?"
+   - Brainstormed Owner, Pet, Task, Scheduler
+   - Created initial UML
+   
+2. **Session 2: Implementation** — "Convert this UML to Python dataclasses"
+   - Generated pawpal_system.py skeleton
+   - Added full method implementations
+   
+3. **Session 3: Algorithms** — "How do I sort tasks by time? Filter by pet?"
+   - Developed sorting/filtering/conflict logic
+   - Refined tradeoffs
+   
+4. **Session 4: Testing** — "Generate comprehensive tests for all my classes"
+   - Created 30 test cases
+   - Debugged failing tests
+   
+5. **Session 5: UI** — "How do I integrate Streamlit with my logic layer?"
+   - Wired up app.py with session_state
+   - Added smart algorithm display
+   
+6. **Session 6: Finalization** — "Polish README and finish reflection"
+   - Refined documentation
+   - Added this AI strategy section
+
+**Why Separate Sessions Were Helpful:**
+- ✅ **Focus**: Each session had one clear goal (no context switching)
+- ✅ **Organization**: Easy to find prior context when implementing (Session 2 → "remember the classes from Session 1?")
+- ✅ **Token efficiency**: Kept chat history manageable (~5-10 exchanges per session)
+- ✅ **Problem isolation**: Algorithm bugs isolated to Session 3, not affecting design decisions
+- ✅ **Mental model**: Different phase = different vocabulary (design → architecture → algorithms → tests)
+
+**Downside:** Had to re-explain architecture in later sessions, but the benefit of clarity outweighed redundancy.
+
+### 3d. Lessons: Being the Lead Architect with AI
+
+**Key Insights:**
+
+1. **You Are the Decider, AI Is the Suggester**
+   - AI is excellent at generating code and explaining options
+   - YOU decide whether the suggestion aligns with your vision
+   - Example: Rejected complex conflict detection for simple approach
+
+2. **Specificity Saves Iteration**
+   - Vague prompts ("make the scheduler smarter") → Vague results
+   - Specific prompts ("Sort by priority first, then duration") → Exact results
+   - Time investment: 2 minutes writing a good prompt saves 10 minutes of editing
+
+3. **AI Excels at Boilerplate, Struggles with Design**
+   - ✅ Excellent: "Generate docstrings," "Write tests," "Refactor this method"
+   - ⚠️ Risky: "Design a scheduling algorithm" (too many options, no context)
+   - ✅ Better: "I want a greedy algorithm that fits high-priority first. Generate that."
+
+4. **Human Review Is Essential**
+   - AI generated 30 test cases; I filtered to 20 core behaviors
+   - AI suggested O(n²) algorithm; I chose O(n) simplicity
+   - AI wrote docstrings; I corrected 2-3 that were vague
+   - Lesson: AI is a multiplier of your judgment, not a replacement
+
+5. **Separation of Concerns Stays Boundaries**
+   - Task handles validation and recurrence logic
+   - Pet manages task storage
+   - Scheduler handles algorithms
+   - Owner manages metadata
+   - AI suggested violating these boundaries; you maintained them
+   - Lesson: Your UML is your contract; enforce it with AI
+
+6. **Test-Driven Refinement**
+   - Wrote tests in Session 4
+   - Found bugs in implementation
+   - Used AI to fix bugs while preserving tests
+   - Result: Confidence in reliability
+   - Lesson: Tests + AI collaboration = high-quality code
+
+**Overall AI Collaboration Score: 9/10**
+- What worked: Code generation, test suite, documentation, refactoring
+- What didn't: Design decisions, architectural tradeoffs, simplicity vs. completeness
+- Bottom line: AI is a force multiplier when you're the clear architect
+
 ### Evaluation: Simplicity vs. Performance
 
 **Example: sort_by_time()**

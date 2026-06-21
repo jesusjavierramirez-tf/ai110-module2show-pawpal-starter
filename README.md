@@ -187,7 +187,176 @@ The PawPal+ test suite includes **30 comprehensive tests** organized into 5 test
 - Time constraint fitting is verified to work correctly
 - No test failures or flaky tests detected
 
-## 📐 Smarter Scheduling
+---
+
+## ✨ Core Features
+
+PawPal+ implements intelligent pet care scheduling with these key features:
+
+| Feature | Description | Example |
+|---------|-------------|---------|
+| **Add Pets & Tasks** | Create pets with breed/age, add tasks with priority/duration | Add "Biscuit" (Golden Retriever), then schedule "Morning Walk" (30 min, high priority) |
+| **Priority-Based Scheduling** | Auto-sort tasks by importance (high→medium→low) with duration tiebreaker | High-priority "Feeding" (5 min) scheduled before "Play" (20 min, medium) |
+| **Time-Based Sorting** | Sort tasks by scheduled time slots (HH:MM format, earliest first) | View 08:00 Walk, 08:30 Feeding, 10:00 Play in chronological order |
+| **Pet Filtering** | View tasks for specific pets | Show only "Luna" tasks to focus on one pet's workload |
+| **Status Filtering** | View pending or completed tasks | Filter to show only incomplete tasks for today's schedule |
+| **Conflict Detection** | Identify tasks scheduled at same time | Flag "08:00 Walk" + "08:00 Feeding" as conflicting |
+| **Recurring Tasks** | Auto-generate next occurrence for daily/weekly tasks | Mark "Daily Feeding" complete → automatically creates tomorrow's feeding |
+| **Time Constraints** | Fit maximum tasks within available hours | For 3-hour availability: includes all high-priority tasks (90 min) + medium tasks |
+| **Time Slot Assignment** | Auto-calculate start times for unscheduled tasks | Assign 08:00, 08:30, 08:40, 09:00 for 4 sequential tasks |
+| **Daily Plan Generation** | Create optimized schedule respecting all constraints | Greedy algorithm fits high-priority first, then medium, then low |
+
+---
+
+## 📸 Demo Walkthrough
+
+### Example Workflow
+
+**Step 1: Set Up Owner**
+- Owner: Alice, 3 hours available per day
+
+**Step 2: Add Pets**
+- Pet 1: Biscuit (Golden Retriever, 3 years)
+- Pet 2: Luna (Siamese Cat, 5 years)
+
+**Step 3: Add Tasks**
+For Biscuit:
+- Morning Walk (30 min, high priority) — "Brisk walk in the park"
+- Feeding (10 min, high priority) — "Breakfast meal"
+- Play Session (20 min, medium priority) — "Fetch with tennis ball"
+
+For Luna:
+- Feeding (5 min, high priority) — "Breakfast kibble"
+- Litter Box Cleaning (10 min, high priority) — "Clean and refill litter box"
+- Play with Toy (15 min, medium priority) — "Interactive wand toy"
+
+**Step 4: Generate Daily Schedule**
+The scheduler executes this algorithm:
+1. Sort all 6 tasks by priority (high→medium→low) with duration as tiebreaker
+2. Greedy fit: Add tasks sequentially until 3 hours (180 min) is consumed
+3. Result: All high-priority tasks fit (5+10+10+30 = 55 min), plus 2 medium tasks (20+15 = 35 min)
+4. Total: 90 min scheduled out of 180 min available ✓
+
+**Step 5: View Plan with Sorting/Filtering**
+- Option A: Sort by priority → See high-priority tasks first
+- Option B: Sort by time → See chronological order (with calculated start times)
+- Option C: Filter by pet → See only Biscuit's tasks or only Luna's tasks
+
+**Step 6: Check for Conflicts**
+- No warning: Each task has unique time or no time slot assigned
+- If added task at 08:00 for both pets → Conflict flag appears
+
+**Step 7: Mark Task Complete**
+- Click "Done" on Morning Walk → Marked complete
+- If task is "Daily" frequency → New task auto-created for next day
+
+### Sample CLI Output (from running `python main.py`)
+
+```
+Owner: Alice (available: 3.0 hours)
+
+Pets: Biscuit (Golden Retriever, 3 years old), Luna (Siamese Cat, 5 years old)
+
+Added 3 tasks to Biscuit
+Added 3 tasks to Luna
+
+Total tasks in system: 6
+
+Tasks sorted by priority:
+  - Feeding (high, 5 min)
+  - Feeding (high, 10 min)
+  - Litter Box Cleaning (high, 10 min)
+  - Morning Walk (high, 30 min)
+  - Play with Toy (medium, 15 min)
+  - Play Session (medium, 20 min)
+
+============================================================
+Daily Plan for Alice
+============================================================
+
+1. [○ TODO] FEEDING
+   Pet: Luna
+   Duration: 5 min | Priority: high
+   Details: Breakfast kibble
+
+2. [○ TODO] FEEDING
+   Pet: Biscuit
+   Duration: 10 min | Priority: high
+   Details: Breakfast meal
+
+3. [○ TODO] LITTER BOX CLEANING
+   Pet: Luna
+   Duration: 10 min | Priority: high
+   Details: Clean and refill litter box
+
+4. [○ TODO] MORNING WALK
+   Pet: Biscuit
+   Duration: 30 min | Priority: high
+   Details: Brisk walk in the park
+
+5. [○ TODO] PLAY WITH TOY
+   Pet: Luna
+   Duration: 15 min | Priority: medium
+   Details: Interactive wand toy
+
+6. [○ TODO] PLAY SESSION
+   Pet: Biscuit
+   Duration: 20 min | Priority: medium
+   Details: Fetch with tennis ball
+
+------------------------------------------------------------
+Total time needed: 90 minutes (1.5 hours)
+Available time: 180.0 minutes (3.0 hours)
+✓ All scheduled tasks fit within available time!
+============================================================
+
+Marking 'Morning Walk' as complete...
+
+============================================================
+Daily Plan for Alice (Updated)
+============================================================
+
+1. [✓ DONE] MORNING WALK
+   Pet: Biscuit
+   Duration: 30 min | Priority: high
+   Details: Brisk walk in the park
+
+[... remaining 5 tasks in pending state ...]
+```
+
+### Streamlit UI Features
+
+1. **Owner Setup**
+   - Set owner name and daily availability (hours)
+   - Real-time input with immediate effect
+
+2. **Pet Management**
+   - Add new pets with breed and age
+   - View all pets with task counts
+   - Remove pets with one click
+
+3. **Task Management**
+   - Select pet and add task with priority/duration
+   - Mark tasks complete (triggers recurrence if applicable)
+   - Delete tasks
+   - View all tasks for selected pet
+
+4. **Schedule Generation**
+   - Click "Generate Schedule" button to create plan
+   - **Smart Display with Algorithms:**
+     - Sort by priority OR time slot (radio buttons)
+     - Filter by pet (dropdown, "All Pets" option)
+     - Display formatted table with calculated start times
+   - **Conflict Detection:**
+     - ⚠️ Warnings for tasks at same time
+     - Shows conflicting task names and pet names
+   - **Schedule Analysis:**
+     - Metrics: tasks scheduled, time used, time available, time remaining
+     - Summary notes showing priority breakdown and skipped tasks
+
+---
+
+## 📐 System Architecture (Updated UML)
 
 The PawPal+ scheduler implements several intelligent algorithms to optimize daily pet care plans:
 
@@ -221,14 +390,6 @@ The PawPal+ scheduler implements several intelligent algorithms to optimize dail
 - Returns warning messages for UI to display
 - Currently checks **exact** time matches (not duration overlaps)
 
-## 📸 Demo Walkthrough
 
-Describe your app in numbered steps so a reader can follow along without watching a video:
 
-1. <!-- Describe this step -->
-2. <!-- Describe this step -->
-3. <!-- Describe this step -->
-4. <!-- Describe this step -->
-5. <!-- Add more steps as needed -->
-
-**Screenshot or video** *(optional)*: <!-- Insert a screenshot or link to a demo video here -->
+![alt text](image.png)

@@ -208,36 +208,79 @@ if "generated_plan" in st.session_state:
         
         st.divider()
         
-        # Display schedule table
-        schedule_data = []
-        cumulative_time = 0
-        for idx, task in enumerate(plan, 1):
-            # Find which pet this task belongs to
-            pet_name = "Unknown"
-            for pet in st.session_state.owner.pets:
-                if task in pet.tasks:
-                    pet_name = pet.name
-                    break
-            
-            start_mins = int(cumulative_time)
-            start_hours = start_mins // 60
-            start_mins_remainder = start_mins % 60
-            
-            schedule_data.append({
-                "Order": idx,
-                "Pet": pet_name,
-                "Task": task.task_type,
-                "Priority": task.priority.upper(),
-                "Duration (min)": int(task.duration),
-                "Start Time": f"{start_hours:02d}:{start_mins_remainder:02d}",
-                "Details": task.description or "-"
-            })
-            cumulative_time += task.duration
+        # ====== SMART ALGORITHM DISPLAY: Sorting & Filtering ======
+        col1, col2 = st.columns(2)
+        with col1:
+            sort_by = st.radio(
+                "Sort schedule by:",
+                ["Priority (High→Low)", "Time Slot (Early→Late)"],
+                horizontal=True,
+                key="sort_radio"
+            )
+        with col2:
+            pet_filter = st.selectbox(
+                "Filter by pet (optional):",
+                ["All Pets"] + [p.name for p in st.session_state.owner.pets],
+                key="pet_filter_select"
+            )
         
-        st.dataframe(schedule_data, use_container_width=True)
+        # Apply sorting
+        if sort_by == "Priority (High→Low)":
+            display_plan = st.session_state.scheduler.sort_by_priority(plan)
+        else:
+            display_plan = st.session_state.scheduler.sort_by_time(plan)
+        
+        # Apply pet filtering
+        if pet_filter != "All Pets":
+            filtered_plan = []
+            for task in display_plan:
+                for pet in st.session_state.owner.pets:
+                    if pet.name == pet_filter and task in pet.tasks:
+                        filtered_plan.append(task)
+                        break
+            display_plan = filtered_plan
+        
+        # ====== CONFLICT DETECTION ======
+        conflicts = st.session_state.scheduler.detect_conflicts()
+        if conflicts:
+            for conflict in conflicts:
+                st.warning(f"⚠️ **SCHEDULING CONFLICT** at {conflict['time_slot']}: "
+                          f"{conflict['task_count']} tasks ({', '.join(conflict['tasks'])}) "
+                          f"for {', '.join(conflict['pets'])}")
+        
+        # Display schedule table
+        if display_plan:
+            schedule_data = []
+            cumulative_time = 0
+            for idx, task in enumerate(display_plan, 1):
+                # Find which pet this task belongs to
+                pet_name = "Unknown"
+                for pet in st.session_state.owner.pets:
+                    if task in pet.tasks:
+                        pet_name = pet.name
+                        break
+                
+                start_mins = int(cumulative_time)
+                start_hours = start_mins // 60
+                start_mins_remainder = start_mins % 60
+                
+                schedule_data.append({
+                    "Order": idx,
+                    "Pet": pet_name,
+                    "Task": task.task_type,
+                    "Priority": task.priority.upper(),
+                    "Duration (min)": int(task.duration),
+                    "Start Time": f"{start_hours:02d}:{start_mins_remainder:02d}",
+                    "Details": task.description or "-"
+                })
+                cumulative_time += task.duration
+            
+            st.dataframe(schedule_data, use_container_width=True)
+        else:
+            st.info("No tasks match the selected filter.")
         
         # Show notes
-        st.markdown("### 📝 Notes")
+        st.markdown("### 📝 Schedule Analysis")
         high_priority = [t for t in plan if t.priority == "high"]
         medium_priority = [t for t in plan if t.priority == "medium"]
         low_priority = [t for t in plan if t.priority == "low"]
