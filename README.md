@@ -157,8 +157,35 @@ tests/test_pawpal.py::TestSmartAlgorithms::test_pet_mark_task_complete_with_recu
 ```
 
 **Test Coverage:**
-- **Original tests (20)**: Task validation, pet/owner/scheduler basics, priority sorting, time constraints
-- **Smart algorithm tests (10)**: Time-based sorting, pet/status filtering, conflict detection, recurring tasks, time slot assignment
+
+The PawPal+ test suite includes **30 comprehensive tests** organized into 5 test classes:
+
+| Test Class | Count | Focus Area |
+|-----------|-------|-----------|
+| `TestTask` | 8 | Task validation, priority mapping, completion state |
+| `TestPet` | 6 | Pet management, task addition/removal, pending task retrieval |
+| `TestOwner` | 3 | Pet ownership, multi-pet task aggregation, availability management |
+| `TestScheduler` | 3 | Priority-based planning, time constraints, pending task filtering |
+| `TestSmartAlgorithms` | 10 | Time sorting, pet/status filtering, conflict detection, recurring tasks, time slot assignment |
+
+**Key Testing Highlights:**
+- ✅ **Sorting Correctness**: Verified tasks are returned in chronological order (time-based) and by priority (high→low)
+- ✅ **Recurrence Logic**: Confirmed that marking daily/weekly tasks complete auto-generates next occurrence
+- ✅ **Conflict Detection**: Verified scheduler correctly flags duplicate times and reports task pairs
+- ✅ **Edge Cases**: Tested one-time vs recurring tasks, empty task lists, invalid input validation
+- ✅ **Time Constraints**: Validated that generated plans respect owner availability limits
+- ✅ **Happy Paths**: Confirmed normal workflows (add pet, add tasks, generate plan, mark complete)
+
+### Confidence Level: ⭐⭐⭐⭐⭐ (5/5 Stars)
+
+**Why This Rating:**
+- All 30 tests pass with 100% success rate
+- Tests cover core algorithms (sorting, filtering, conflict detection, recurring logic)
+- Both happy paths and edge cases are validated
+- Task validation prevents invalid data entry at the model level
+- Recurrence logic automatically tested across multiple frequency types
+- Time constraint fitting is verified to work correctly
+- No test failures or flaky tests detected
 
 ## 📐 Smarter Scheduling
 
