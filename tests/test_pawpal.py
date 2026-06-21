@@ -260,3 +260,201 @@ class TestScheduler:
         pending = scheduler.get_pending_tasks()
         assert len(pending) == 1, "Should have 1 pending task"
         assert task2 in pending, "Pending task should be the incomplete one"
+
+
+class TestSmartAlgorithms:
+    """Test new smart algorithms: sorting, filtering, conflicts, recurring tasks."""
+    
+    def test_sort_by_time(self):
+        """Verify tasks are sorted by time slot (HH:MM format)."""
+        owner = Owner(name="Alice", available_hours=3.0)
+        scheduler = Scheduler(owner=owner)
+        
+        pet = Pet(name="Biscuit", breed="Dog", age=3)
+        task1 = Task(task_type="Walk", duration=30, priority="high", time_slot="14:00")
+        task2 = Task(task_type="Feed", duration=10, priority="high", time_slot="08:00")
+        task3 = Task(task_type="Play", duration=20, priority="medium", time_slot="10:00")
+        
+        pet.add_task(task1)
+        pet.add_task(task2)
+        pet.add_task(task3)
+        owner.add_pet(pet)
+        
+        sorted_tasks = scheduler.sort_by_time()
+        
+        # Should be: Feed (08:00), Play (10:00), Walk (14:00)
+        assert sorted_tasks[0] == task2, "Feed should be first (08:00)"
+        assert sorted_tasks[1] == task3, "Play should be second (10:00)"
+        assert sorted_tasks[2] == task1, "Walk should be third (14:00)"
+    
+    def test_filter_by_pet(self):
+        """Verify filtering tasks by pet name."""
+        owner = Owner(name="Alice", available_hours=3.0)
+        scheduler = Scheduler(owner=owner)
+        
+        dog = Pet(name="Biscuit", breed="Dog", age=3)
+        cat = Pet(name="Luna", breed="Cat", age=5)
+        
+        dog_task = Task(task_type="Walk", duration=30, priority="high")
+        cat_task = Task(task_type="Play", duration=15, priority="medium")
+        
+        dog.add_task(dog_task)
+        cat.add_task(cat_task)
+        owner.add_pet(dog)
+        owner.add_pet(cat)
+        
+        biscuit_tasks = scheduler.filter_by_pet("Biscuit")
+        assert len(biscuit_tasks) == 1, "Should have 1 Biscuit task"
+        assert dog_task in biscuit_tasks, "Should contain dog task"
+        
+        luna_tasks = scheduler.filter_by_pet("Luna")
+        assert len(luna_tasks) == 1, "Should have 1 Luna task"
+        assert cat_task in luna_tasks, "Should contain cat task"
+    
+    def test_filter_by_status(self):
+        """Verify filtering tasks by completion status."""
+        owner = Owner(name="Alice", available_hours=3.0)
+        scheduler = Scheduler(owner=owner)
+        
+        pet = Pet(name="Biscuit", breed="Dog", age=3)
+        task1 = Task(task_type="Walk", duration=30, priority="high")
+        task2 = Task(task_type="Feed", duration=10, priority="high")
+        
+        pet.add_task(task1)
+        pet.add_task(task2)
+        task1.mark_complete()
+        owner.add_pet(pet)
+        
+        completed = scheduler.filter_by_status(completed=True)
+        assert len(completed) == 1, "Should have 1 completed task"
+        assert task1 in completed, "Should contain completed task"
+        
+        pending = scheduler.filter_by_status(completed=False)
+        assert len(pending) == 1, "Should have 1 pending task"
+        assert task2 in pending, "Should contain pending task"
+    
+    def test_detect_conflicts(self):
+        """Verify conflict detection identifies tasks at same time."""
+        owner = Owner(name="Alice", available_hours=3.0)
+        scheduler = Scheduler(owner=owner)
+        
+        pet = Pet(name="Biscuit", breed="Dog", age=3)
+        task1 = Task(task_type="Walk", duration=30, priority="high", time_slot="08:00")
+        task2 = Task(task_type="Feed", duration=10, priority="high", time_slot="08:00")  # Conflict
+        task3 = Task(task_type="Play", duration=20, priority="medium", time_slot="08:30")
+        
+        pet.add_task(task1)
+        pet.add_task(task2)
+        pet.add_task(task3)
+        owner.add_pet(pet)
+        
+        conflicts = scheduler.detect_conflicts()
+        assert len(conflicts) == 1, "Should detect 1 conflict"
+        assert conflicts[0]["time_slot"] == "08:00", "Conflict should be at 08:00"
+        assert conflicts[0]["task_count"] == 2, "Should have 2 tasks in conflict"
+    
+    def test_no_conflicts(self):
+        """Verify no false conflicts when times don't overlap."""
+        owner = Owner(name="Alice", available_hours=3.0)
+        scheduler = Scheduler(owner=owner)
+        
+        pet = Pet(name="Biscuit", breed="Dog", age=3)
+        task1 = Task(task_type="Walk", duration=30, priority="high", time_slot="08:00")
+        task2 = Task(task_type="Feed", duration=10, priority="high", time_slot="08:30")
+        task3 = Task(task_type="Play", duration=20, priority="medium", time_slot="08:40")
+        
+        pet.add_task(task1)
+        pet.add_task(task2)
+        pet.add_task(task3)
+        owner.add_pet(pet)
+        
+        conflicts = scheduler.detect_conflicts()
+        assert len(conflicts) == 0, "Should not detect any conflicts"
+    
+    def test_recurring_task_generation(self):
+        """Verify recurring tasks auto-generate next occurrence."""
+        task = Task(
+            task_type="Daily Walk",
+            duration=30,
+            priority="high",
+            frequency="daily"
+        )
+        
+        assert task.completed is False, "Task should start incomplete"
+        next_task = task.mark_complete()
+        
+        assert task.completed is True, "Task should be marked complete"
+        assert next_task is not None, "Should generate next occurrence"
+        assert next_task.task_type == task.task_type, "New task should have same type"
+        assert next_task.completed is False, "New task should be incomplete"
+        assert next_task.due_date is not None, "New task should have due date"
+    
+    def test_recurring_weekly_task(self):
+        """Verify weekly recurring tasks calculate correct next date."""
+        from datetime import datetime, timedelta
+        
+        today = datetime.now()
+        task = Task(
+            task_type="Weekly Bath",
+            duration=45,
+            priority="medium",
+            frequency="weekly",
+            due_date=today
+        )
+        
+        next_task = task.mark_complete()
+        
+        assert next_task is not None, "Should generate weekly task"
+        expected_date = today + timedelta(weeks=1)
+        # Check that next task is approximately a week away (within 1 day tolerance)
+        assert abs((next_task.due_date - expected_date).days) <= 1
+    
+    def test_one_time_task_no_recurrence(self):
+        """Verify one-time tasks don't auto-generate."""
+        task = Task(
+            task_type="Vet Appointment",
+            duration=60,
+            priority="high",
+            frequency="once"
+        )
+        
+        next_task = task.mark_complete()
+        
+        assert next_task is None, "One-time task should not generate next occurrence"
+        assert task.completed is True, "Task should be marked complete"
+    
+    def test_assign_time_slots(self):
+        """Verify time slot assignment calculates correct start times."""
+        owner = Owner(name="Alice", available_hours=3.0)
+        scheduler = Scheduler(owner=owner)
+        
+        tasks = [
+            Task(task_type="Walk", duration=30, priority="high"),
+            Task(task_type="Feed", duration=10, priority="high"),
+            Task(task_type="Play", duration=20, priority="medium"),
+        ]
+        
+        assigned = scheduler.assign_time_slots(tasks, start_time="08:00")
+        
+        assert assigned[0].time_slot == "08:00", "First task should start at 08:00"
+        assert assigned[1].time_slot == "08:30", "Second task should start at 08:30"
+        assert assigned[2].time_slot == "08:40", "Third task should start at 08:40"
+    
+    def test_pet_mark_task_complete_with_recurrence(self):
+        """Verify pet's mark_task_complete auto-adds next occurrence."""
+        pet = Pet(name="Biscuit", breed="Dog", age=3)
+        
+        task = Task(
+            task_type="Daily Feeding",
+            duration=10,
+            priority="high",
+            frequency="daily"
+        )
+        pet.add_task(task)
+        
+        assert len(pet.tasks) == 1, "Should have 1 task initially"
+        next_task = pet.mark_task_complete(task.task_id)
+        
+        assert next_task is not None, "Should return next task"
+        assert len(pet.tasks) == 2, "Should have 2 tasks after recurrence"
+        assert pet.tasks[1].completed is False, "New task should be incomplete"

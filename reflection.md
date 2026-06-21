@@ -67,13 +67,47 @@ Yes, the design was refined based on AI review of the skeleton. Key changes:
 
 **a. Constraints and priorities**
 
-- What constraints does your scheduler consider (for example: time, priority, preferences)?
-- How did you decide which constraints mattered most?
+The scheduler considers the following constraints and priorities:
+
+1. **Time Constraint** — Tasks must fit within owner's available hours per day. The greedy algorithm prioritizes high-priority tasks first, then medium, then low, stopping when available time runs out.
+
+2. **Priority Levels** — Tasks are ranked: high (3) > medium (2) > low (1). Within the same priority, shorter tasks are scheduled first (duration tiebreaker).
+
+3. **Task Frequency** — Recurring tasks (daily, weekly, one-time) are tracked with `due_date`. When marked complete, recurring tasks auto-generate the next occurrence.
+
+4. **Time Slots** — Tasks can have specific start times (HH:MM). The scheduler can detect conflicts (multiple tasks at same time) and suggest reassignments.
+
+5. **Pet Assignment** — Tasks belong to specific pets. The scheduler can filter by pet name to show pet-specific workload.
+
+**Decision Process:**
+- Time constraint matters most (can't schedule more than available)
+- Priority matters second (complete high-value tasks first)
+- Task duration matters third (fit more tasks by doing short ones early)
+- Specific time slots matter least (auto-assigned if not specified)
 
 **b. Tradeoffs**
 
-- Describe one tradeoff your scheduler makes.
-- Why is that tradeoff reasonable for this scenario?
+**Tradeoff 1: Greedy Algorithm vs. Optimal Packing**
+- **Current approach (Greedy)**: Sort by priority, fit tasks sequentially until time runs out. Simple, predictable, O(n log n).
+- **Cost**: May leave gaps in the schedule. Example: with 3 hours available, if high-priority tasks total 2.5 hours, a 0.5-hour low-priority task won't fit even though it fills the gap perfectly.
+- **Tradeoff decision**: Greedy is more readable and predictable for a pet owner. The time cost (gaps) is acceptable because schedules are usually not packed tightly anyway.
+
+**Tradeoff 2: Exact Time Conflicts vs. Duration Overlaps**
+- **Current approach (Exact)**: Only detect conflicts if multiple tasks have the exact same `time_slot` (e.g., "08:00").
+- **Cost**: Misses overlaps. Example: Walk (08:00-08:30) and Feeding (08:15-08:25) aren't flagged as conflicting.
+- **Tradeoff decision**: Exact conflicts are sufficient for a first pass. Duration-based conflict detection would require more complex logic and isn't critical for MVP.
+
+**Tradeoff 3: Automatic Recurrence vs. Manual Re-creation**
+- **Current approach (Automatic)**: When a recurring task is marked complete, a new instance is auto-generated for tomorrow/next week.
+- **Cost**: Creates unlimited tasks over time. Database grows indefinitely without archival/cleanup.
+- **Tradeoff decision**: Automatic recurrence is more user-friendly. Archive strategy (clean up completed tasks older than 30 days) can address growth later.
+
+**Tradeoff 4: In-Memory Session State vs. Persistent Database**
+- **Current approach (Session State)**: All data lives in `st.session_state`, lost when browser closes.
+- **Cost**: No data persistence. User loses schedules on refresh.
+- **Tradeoff decision**: Session state is fast and simple for MVP. Production should add SQLite/Firestore.
+
+These tradeoffs prioritize **usability** and **simplicity** over **optimality** and **completeness**.
 
 ---
 
@@ -81,13 +115,23 @@ Yes, the design was refined based on AI review of the skeleton. Key changes:
 
 **a. How you used AI**
 
-- How did you use AI tools during this project (for example: design brainstorming, debugging, refactoring)?
-- What kinds of prompts or questions were most helpful?
+AI was instrumental in:
+1. **UML Design** — Generated initial class structure with proper relationships and suggested dataclasses pattern
+2. **Testing** — Created comprehensive test templates and edge case suggestions
+3. **UI Integration** — Suggested session_state pattern for state persistence and wiring patterns for connecting UI to logic
+4. **Code Review** — Identified missing fields (task_id, description) and redundant storage patterns before implementation
+
+Most helpful prompt types:
+- "Based on my skeleton, how should the Scheduler retrieve tasks from the Owner?"
+- "What's the best way to persist data in Streamlit between button clicks?"
+- "How do I wire a form submission to call a Python class method and update the UI?"
 
 **b. Judgment and verification**
 
-- Describe one moment where you did not accept an AI suggestion as-is.
-- How did you evaluate or verify what the AI suggested?
+One moment where I rejected AI suggestions:
+- **Initial suggestion**: Store tasks in multiple places (both `tasks` and `daily_plan` on Schedule). 
+- **My verification**: I recognized this created a data consistency problem. Tested by asking: "If I modify a task, do I need to update it in two places?" Yes → rejected the suggestion.
+- **Resolution**: Implemented computed plans where `daily_plan` is derived from `tasks` on-demand. One source of truth = fewer bugs.
 
 ---
 
@@ -191,3 +235,187 @@ Updated:
 - README.md: sample output and test results
 - reflection.md: design decisions and testing details
 ```
+
+---
+
+## 7. Smart Algorithms (Phase 4)
+
+### New Features Implemented
+
+**1. Sorting Enhancements:**
+- `sort_by_priority()` — Existing method (high→medium→low, duration tiebreaker)
+- `sort_by_time()` — NEW: Sort by HH:MM time slots, unscheduled tasks first
+
+**2. Filtering:**
+- `filter_by_pet(pet_name)` — NEW: Show only tasks for a specific pet
+- `filter_by_status(completed)` — NEW: Show only pending or completed tasks
+
+**3. Conflict Detection:**
+- `detect_conflicts()` — NEW: Identifies tasks at same time, returns warnings with task names and pet names
+- Helps user manually resolve scheduling conflicts
+
+**4. Recurring Tasks:**
+- Changed `Task.recurring` (boolean) to `Task.frequency` (string: "once", "daily", "weekly")
+- `Task.mark_complete()` — Now returns next recurring instance (if applicable)
+- `Task._generate_next_occurrence()` — NEW: Creates next task with updated due_date
+- `Pet.mark_task_complete(task_id)` — NEW: Marks task complete AND auto-adds next occurrence
+
+**5. Time Slot Assignment:**
+- `assign_time_slots(tasks, start_time)` — NEW: Auto-calculates start times for unscheduled tasks
+- Handles cumulative duration calculations (08:00, 08:30, 08:40, etc.)
+
+### Algorithm Comparisons
+
+**Time-based Sorting: Simple vs. Complex Implementation**
+- **Simple (chosen)**: `sorted(tasks, key=lambda t: (t.get_time_slot_minutes(),))`
+  - Uses `get_time_slot_minutes()` helper to convert "HH:MM" to integer minutes
+  - Readable, 1-line sort key
+  
+- **Complex alternative**: Manual parsing of time slots in the lambda
+  - Would be harder to read and debug
+  - **Decision**: Simple version is more Pythonic and maintainable
+
+**Conflict Detection: Exact vs. Duration-based**
+- **Current (Exact)**: Check if multiple tasks have identical `time_slot` value
+  - Fast: O(n) with dict grouping
+  - Limitation: Misses overlaps (08:00-08:30 walk + 08:15-08:25 feeding)
+  
+- **Alternative (Overlaps)**: Check if time ranges intersect
+  - Would require start/end time calculation for each task
+  - More complex: O(n²) naive comparison or O(n log n) with sweep-line algorithm
+  - **Decision**: Exact matching is sufficient for MVP. Overlap detection can be Phase 5
+
+**Recurring Task Auto-generation: Approach**
+- **Chosen**: Call `task.mark_complete()` which returns new Task instance
+  - Clean separation: Task handles logic, Pet handles storage
+  - `Pet.mark_task_complete()` adds returned task to pet.tasks
+  - Testable: Can verify new task properties independently
+  
+- **Alternative**: Have Pet poll task completion and auto-create
+  - Tighter coupling between Pet and Task
+  - Less clear responsibility boundary
+  - **Decision**: Current approach is cleaner
+
+### Testing Strategy
+
+Added 10 new tests in `TestSmartAlgorithms` class covering:
+- Time sorting (ordering tasks by HH:MM)
+- Pet filtering (single pet returns only its tasks)
+- Status filtering (pending vs completed)
+- Conflict detection (same time) and no-conflict scenarios
+- Recurring tasks (daily, weekly, one-time)
+- Time slot assignment (cumulative duration calculation)
+- Pet auto-recurrence integration
+
+**Coverage**: 30/30 tests passing (20 original + 10 new)
+
+### Evaluation: Simplicity vs. Performance
+
+**Example: sort_by_time()**
+
+Original AI suggestion:
+```python
+# Complex with inline parsing
+sorted_tasks = sorted(tasks, key=lambda t: tuple(map(int, t.time_slot.split(":") or (999, 999))))
+```
+
+**Chosen (simpler):**
+```python
+def get_time_slot_minutes(self) -> int:
+    """Convert HH:MM to minutes since midnight."""
+    if self.time_slot is None:
+        return 0
+    try:
+        h, m = map(int, self.time_slot.split(":"))
+        return h * 60 + m
+    except (ValueError, AttributeError):
+        return 0
+
+sorted_tasks = sorted(tasks, key=lambda t: (t.get_time_slot_minutes(),))
+```
+
+**Why chosen version is better:**
+- Readable: Clear helper method with docstring
+- Reusable: Used in conflict detection and time assignment
+- Debuggable: Can inspect `get_time_slot_minutes()` independently
+- Error-safe: Handles None and format errors gracefully
+
+**Performance trade-off:** Helper method is negligible (microseconds). Readability wins.
+
+### Connection Architecture
+
+The app.py now bridges logic and UI through three key mechanisms:
+
+**1. Imports (Lines 2-3):**
+```python
+from pawpal_system import Owner, Pet, Task, Scheduler
+```
+Makes all classes available in the Streamlit app.
+
+**2. Session State Initialization (Lines 26-31):**
+```python
+def init_session_state():
+    if "owner" not in st.session_state:
+        st.session_state.owner = Owner(...)
+        st.session_state.scheduler = Scheduler(...)
+```
+Solves Streamlit's stateless problem by persisting the Owner object across reruns.
+
+**3. UI-to-Logic Wiring:**
+- **Add Pet** → `owner.add_pet(Pet(...))` → `st.rerun()` to refresh UI
+- **Add Task** → `pet.add_task(Task(...))` → `st.rerun()`
+- **Toggle Task** → `task.mark_complete()` / `mark_incomplete()` → `st.rerun()`
+- **Generate Plan** → `scheduler.generate_plan()` → Display results with time accounting
+
+### Data Flow
+
+```
+User clicks "Add Pet" button
+    ↓
+Streamlit captures form inputs (name, breed, age)
+    ↓
+Create Pet object
+    ↓
+Call owner.add_pet(pet) — updates owner.pets list
+    ↓
+st.rerun() refreshes the page
+    ↓
+Page renders and displays new pet in the pet list
+    ↓
+Session state persists across reruns
+```
+
+### Key Design Decisions
+
+- **No database yet**: All data lives in `st.session_state` (in-memory). Closes when session ends.
+- **Direct method calls**: UI buttons directly call class methods (not a REST API layer).
+- **Reactive updates**: `st.rerun()` after modifications ensures UI stays in sync with data.
+- **Validation in logic layer**: Form validation happens in Task.validate(), not in UI.
+- **Flexible scheduling**: Users can toggle task completion and regenerate plans on-demand.
+
+### UI Features Implemented
+
+✅ **Owner Setup**: Set name and daily availability
+✅ **Pet Management**: Add/view/remove pets
+✅ **Task Management**: Add/view/delete tasks per pet, mark complete/incomplete
+✅ **Schedule Generation**: Create optimized daily plan with time accounting
+✅ **Schedule Display**: Table view with pet names, priorities, durations, start times
+✅ **Explanations**: Show which priority tasks were included and why
+
+### Sample User Journey
+
+1. Owner enters "Alice" and "3 hours" availability
+2. Adds pet "Biscuit" (Golden Retriever, 3 years)
+3. Adds tasks: Morning Walk (30 min, high), Feeding (10 min, high), Play (20 min, medium)
+4. Clicks "Generate Schedule"
+5. App displays: "All 3 tasks fit! Morning Walk starts at 00:00, Feeding at 00:30, Play at 00:40"
+6. Owner can mark "Morning Walk" complete to regenerate plan
+
+### Next Steps for Production
+
+- Add persistent storage (SQLite or Firebase)
+- Implement user authentication/accounts
+- Add time-slot visualization (calendar/timeline view)
+- Handle recurring tasks UI and logic
+- Export schedule to calendar format (iCal)
+- Add pet health records and vet appointment tracking
