@@ -47,11 +47,62 @@ pip install -r requirements.txt
 Paste a sample of your app's CLI or Streamlit output here so a reader can see what a generated plan looks like:
 
 ```
-# e.g.:
-# Daily plan for Biscuit (Golden Retriever):
-#   08:00 — Morning walk (30 min) [priority: high]
-#   09:00 — Feeding (10 min) [priority: high]
-#   ...
+Owner: Alice (available: 3.0 hours)
+
+Pets: Biscuit (Golden Retriever, 3 years old), Luna (Siamese Cat, 5 years old)
+
+Added 3 tasks to Biscuit
+Added 3 tasks to Luna
+
+Total tasks in system: 6
+
+Tasks sorted by priority:
+  - Feeding (high, 5 min)
+  - Feeding (high, 10 min)
+  - Litter Box Cleaning (high, 10 min)
+  - Morning Walk (high, 30 min)
+  - Play with Toy (medium, 15 min)
+  - Play Session (medium, 20 min)
+
+============================================================
+Daily Plan for Alice
+============================================================
+
+1. [○ TODO] FEEDING
+   Pet: Luna
+   Duration: 5 min | Priority: high
+   Details: Breakfast kibble
+
+2. [○ TODO] FEEDING
+   Pet: Biscuit
+   Duration: 10 min | Priority: high
+   Details: Breakfast meal
+
+3. [○ TODO] LITTER BOX CLEANING
+   Pet: Luna
+   Duration: 10 min | Priority: high
+   Details: Clean and refill litter box
+
+4. [○ TODO] MORNING WALK
+   Pet: Biscuit
+   Duration: 30 min | Priority: high
+   Details: Brisk walk in the park
+
+5. [○ TODO] PLAY WITH TOY
+   Pet: Luna
+   Duration: 15 min | Priority: medium
+   Details: Interactive wand toy
+
+6. [○ TODO] PLAY SESSION
+   Pet: Biscuit
+   Duration: 20 min | Priority: medium
+   Details: Fetch with tennis ball
+
+------------------------------------------------------------
+Total time needed: 90 minutes (1.5 hours)
+Available time: 180.0 minutes (3.0 hours)
+✓ All scheduled tasks fit within available time!
+============================================================
 ```
 
 ## 🧪 Testing PawPal+
@@ -67,7 +118,32 @@ pytest --cov
 Sample test output:
 
 ```
-# Paste your pytest output here
+================== test session starts ==================
+platform win32 -- Python 3.14.2, pytest-9.1.0, pluggy-1.6.0
+collected 20 items                                       
+
+tests/test_pawpal.py::TestTask::test_task_completion PASSED [  5%]
+tests/test_pawpal.py::TestTask::test_task_incomplete PASSED [ 10%]
+tests/test_pawpal.py::TestTask::test_task_validation_valid PASSED [ 15%]
+tests/test_pawpal.py::TestTask::test_task_validation_invalid_priority PASSED [ 20%]
+tests/test_pawpal.py::TestTask::test_task_validation_invalid_duration PASSED [ 25%]
+tests/test_pawpal.py::TestTask::test_task_priority_level_high PASSED [ 30%]
+tests/test_pawpal.py::TestTask::test_task_priority_level_medium PASSED [ 35%]
+tests/test_pawpal.py::TestTask::test_task_priority_level_low PASSED [ 40%]
+tests/test_pawpal.py::TestPet::test_pet_add_task PASSED [ 45%]
+tests/test_pawpal.py::TestPet::test_pet_add_multiple_tasks PASSED [ 50%]
+tests/test_pawpal.py::TestPet::test_pet_add_invalid_task PASSED [ 55%]
+tests/test_pawpal.py::TestPet::test_pet_remove_task PASSED [ 60%]
+tests/test_pawpal.py::TestPet::test_pet_get_pending_tasks PASSED [ 65%]
+tests/test_pawpal.py::TestPet::test_pet_get_info PASSED [ 70%]
+tests/test_pawpal.py::TestOwner::test_owner_add_pet PASSED [ 75%]
+tests/test_pawpal.py::TestOwner::test_owner_get_all_tasks PASSED [ 80%]
+tests/test_pawpal.py::TestOwner::test_owner_availability PASSED [ 85%]
+tests/test_pawpal.py::TestScheduler::test_scheduler_sort_by_priority PASSED [ 90%]
+tests/test_pawpal.py::TestScheduler::test_scheduler_generate_plan_respects_time PASSED [ 95%]
+tests/test_pawpal.py::TestScheduler::test_scheduler_pending_tasks_only PASSED [100%]
+
+================== 20 passed in 0.15s ===================
 ```
 
 ## 📐 Smarter Scheduling
